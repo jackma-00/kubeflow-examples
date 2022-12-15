@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: my-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.17, pipelines.kubeflow.org/pipeline_compilation_time: '2022-12-14T16:08:08.319903',
+    pipelines.kubeflow.org/pipeline_spec: '{"name": "My pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.17}
+spec:
+  entrypoint: my-pipeline
+  templates:
+  - name: get-lines
+    container:
+      args: []
+      command: [python3, /pipelines/component/src/program.py, --input1-path, /tmp/inputs/Input_1/data,
+        --param1, '5', --output1-path, /tmp/outputs/Output_1/data]
+      image: jackma00/component-development-test
+    inputs:
+      artifacts:
+      - {name: write-lines-data, path: /tmp/inputs/Input_1/data}
+    outputs:
+      artifacts:
+      - {name: get-lines-Output-1, path: /tmp/outputs/Output_1/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Gets
+          the specified number of lines from the input file.", "implementation": {"container":
+          {"command": ["python3", "/pipelines/component/src/program.py", "--input1-path",
+          {"inputPath": "Input 1"}, "--param1", {"inputValue": "Parameter 1"}, "--output1-path",
+          {"outputPath": "Output 1"}], "image": "jackma00/component-development-test"}},
+          "inputs": [{"description": "Data for input 1", "name": "Input 1", "type":
+          "String"}, {"default": "100", "description": "Number of lines to copy",
+          "name": "Parameter 1", "type": "Integer"}], "name": "Get Lines", "outputs":
+          [{"description": "Output 1 data.", "name": "Output 1", "type": "String"}]}',
+        pipelines.kubeflow.org/component_ref: '{"digest": "215027518eaa47dc983ef571ff2b5047584b1cb3757e8d7e958a753aadb9961e"}',
+        pipelines.kubeflow.org/arguments.parameters: '{"Parameter 1": "5"}'}
+  - name: my-pipeline
+    dag:
+      tasks:
+      - name: get-lines
+        template: get-lines
+        dependencies: [write-lines]
+        arguments:
+          artifacts:
+          - {name: write-lines-data, from: '{{tasks.write-lines.outputs.artifacts.write-lines-data}}'}
+      - {name: write-lines, template: write-lines}
+  - name: write-lines
+    container:
+      args:
+      - |-
+        one
+        two
+        three
+        four
+        five
+        six
+        seven
+        eight
+        nine
+        ten
+      - /tmp/outputs/data/data
+      command:
+      - sh
+      - -c
+      - |
+        mkdir -p "$(dirname "$1")"
+        echo "$0" > "$1"
+      image: busybox
+    outputs:
+      artifacts:
+      - {name: write-lines-data, path: /tmp/outputs/data/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Writes
+          text to a file.", "implementation": {"container": {"args": [{"inputValue":
+          "text"}, {"outputPath": "data"}], "command": ["sh", "-c", "mkdir -p \"$(dirname
+          \"$1\")\"\necho \"$0\" > \"$1\"\n"], "image": "busybox"}}, "inputs": [{"name":
+          "text", "type": "String"}], "name": "Write Lines", "outputs": [{"name":
+          "data", "type": "String"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "aed063b55c5dd7b9a93c564070705b1adc5278043802649985a137a8bdd89779"}', pipelines.kubeflow.org/arguments.parameters: '{"text":
+          "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten"}'}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner

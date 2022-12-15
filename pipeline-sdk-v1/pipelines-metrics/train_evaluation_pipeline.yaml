@@ -1,0 +1,200 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: train-evaluation-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.17, pipelines.kubeflow.org/pipeline_compilation_time: '2022-12-15T15:57:45.353499',
+    pipelines.kubeflow.org/pipeline_spec: '{"name": "Train evaluation pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.17}
+spec:
+  entrypoint: train-evaluation-pipeline
+  templates:
+  - name: evaluate
+    container:
+      args: [--test-results, /tmp/inputs/test_results/data, --mlpipeline-metrics,
+        /tmp/outputs/mlpipeline_metrics/data]
+      command:
+      - sh
+      - -c
+      - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+        'pandas' 'scikit-learn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip
+        install --quiet --no-warn-script-location 'pandas' 'scikit-learn' --user)
+        && "$0" "$@"
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - |
+        def _make_parent_dirs_and_return_path(file_path: str):
+            import os
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            return file_path
+
+        def evaluate(test_results,
+                     mlpipeline_metrics):
+            """The function evaluates the model performance."""
+
+            import json
+            import pandas as pd
+            from sklearn.metrics import accuracy_score
+
+            def classification_metrics_helper(df):
+
+                accuracy = accuracy_score(df["y_test"], df["y_pred"])
+
+                metrics={
+                  'metrics': [{
+                  'name': 'accuracy-score', # The name of the metric. Visualized as the column name in the runs table.
+                  'numberValue': accuracy, # The value of the metric. Must be a numeric value.
+                  'format': "PERCENTAGE"   # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+                  }]
+                }
+
+                return metrics
+
+            df = pd.read_csv(test_results)
+            metrics = classification_metrics_helper(df)
+            with open(mlpipeline_metrics, 'w') as f:
+                json.dump(metrics, f)
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='Evaluate', description='The function evaluates the model performance.')
+        _parser.add_argument("--test-results", dest="test_results", type=str, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--mlpipeline-metrics", dest="mlpipeline_metrics", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = evaluate(**_parsed_args)
+      image: python:3.8
+    inputs:
+      artifacts:
+      - {name: train-results, path: /tmp/inputs/test_results/data}
+    outputs:
+      artifacts:
+      - {name: mlpipeline-metrics, path: /tmp/outputs/mlpipeline_metrics/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "The function
+          evaluates the model performance.", "implementation": {"container": {"args":
+          ["--test-results", {"inputPath": "test_results"}, "--mlpipeline-metrics",
+          {"outputPath": "mlpipeline_metrics"}], "command": ["sh", "-c", "(PIP_DISABLE_PIP_VERSION_CHECK=1
+          python3 -m pip install --quiet --no-warn-script-location ''pandas'' ''scikit-learn''
+          || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+          ''pandas'' ''scikit-learn'' --user) && \"$0\" \"$@\"", "sh", "-ec", "program_path=$(mktemp)\nprintf
+          \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+          "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n    os.makedirs(os.path.dirname(file_path),
+          exist_ok=True)\n    return file_path\n\ndef evaluate(test_results,\n             mlpipeline_metrics):\n    \"\"\"The
+          function evaluates the model performance.\"\"\"\n\n    import json\n    import
+          pandas as pd\n    from sklearn.metrics import accuracy_score\n\n    def
+          classification_metrics_helper(df):\n\n        accuracy = accuracy_score(df[\"y_test\"],
+          df[\"y_pred\"])\n\n        metrics={\n          ''metrics'': [{\n          ''name'':
+          ''accuracy-score'', # The name of the metric. Visualized as the column name
+          in the runs table.\n          ''numberValue'': accuracy, # The value of
+          the metric. Must be a numeric value.\n          ''format'': \"PERCENTAGE\"   #
+          The optional format of the metric. Supported values are \"RAW\" (displayed
+          in raw format) and \"PERCENTAGE\" (displayed in percentage format).\n          }]\n        }\n\n        return
+          metrics\n\n    df = pd.read_csv(test_results)\n    metrics = classification_metrics_helper(df)\n    with
+          open(mlpipeline_metrics, ''w'') as f:\n        json.dump(metrics, f)\n\nimport
+          argparse\n_parser = argparse.ArgumentParser(prog=''Evaluate'', description=''The
+          function evaluates the model performance.'')\n_parser.add_argument(\"--test-results\",
+          dest=\"test_results\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--mlpipeline-metrics\",
+          dest=\"mlpipeline_metrics\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = evaluate(**_parsed_args)\n"], "image": "python:3.8"}}, "inputs": [{"name":
+          "test_results", "type": "results"}], "name": "Evaluate", "outputs": [{"name":
+          "mlpipeline_metrics", "type": "Metrics"}]}', pipelines.kubeflow.org/component_ref: '{}'}
+  - name: train
+    container:
+      args: [--test-samples-fraction, '0.3', --seed, '7', --results, /tmp/outputs/results/data]
+      command:
+      - sh
+      - -c
+      - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+        'pandas' 'scikit-learn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip
+        install --quiet --no-warn-script-location 'pandas' 'scikit-learn' --user)
+        && "$0" "$@"
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef train(test_samples_fraction,\n          seed,\n          results):\n\
+        \    \"\"\"The function train a model and outputs the predictions.\"\"\"\n\
+        \n    import pandas as pd\n    from sklearn import model_selection\n    from\
+        \ sklearn.linear_model import LogisticRegression\n    from sklearn import\
+        \ datasets\n\n    # Load iris dataset\n    iris = datasets.load_iris()\n\n\
+        \    # Create feature matrix\n    X = iris.data\n\n    # Create target vector\n\
+        \    y = iris.target\n\n    # Split data\n    X_train, X_test, y_train, y_test\
+        \ = model_selection.train_test_split(X, y, test_size=test_samples_fraction,\
+        \ random_state=seed)\n\n    # Model instance\n    model = LogisticRegression()\n\
+        \n    # Fit model\n    model.fit(X_train, y_train)\n\n    # Predict \n   \
+        \ y_pred = model.predict(X_test)\n\n    test_prediction_results = pd.DataFrame(data={'y_test':y_test,\
+        \ 'y_pred':y_pred}).reset_index(drop=True)\n    test_prediction_results.to_csv(results,\
+        \ index=False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Train',\
+        \ description='The function train a model and outputs the predictions.')\n\
+        _parser.add_argument(\"--test-samples-fraction\", dest=\"test_samples_fraction\"\
+        , type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --seed\", dest=\"seed\", type=int, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--results\", dest=\"results\", type=_make_parent_dirs_and_return_path,\
+        \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+        \n_outputs = train(**_parsed_args)\n"
+      image: python:3.8
+    outputs:
+      artifacts:
+      - {name: train-results, path: /tmp/outputs/results/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "The function
+          train a model and outputs the predictions.", "implementation": {"container":
+          {"args": ["--test-samples-fraction", {"inputValue": "test_samples_fraction"},
+          "--seed", {"inputValue": "seed"}, "--results", {"outputPath": "results"}],
+          "command": ["sh", "-c", "(PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip
+          install --quiet --no-warn-script-location ''pandas'' ''scikit-learn'' ||
+          PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+          ''pandas'' ''scikit-learn'' --user) && \"$0\" \"$@\"", "sh", "-ec", "program_path=$(mktemp)\nprintf
+          \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+          "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n    os.makedirs(os.path.dirname(file_path),
+          exist_ok=True)\n    return file_path\n\ndef train(test_samples_fraction,\n          seed,\n          results):\n    \"\"\"The
+          function train a model and outputs the predictions.\"\"\"\n\n    import
+          pandas as pd\n    from sklearn import model_selection\n    from sklearn.linear_model
+          import LogisticRegression\n    from sklearn import datasets\n\n    # Load
+          iris dataset\n    iris = datasets.load_iris()\n\n    # Create feature matrix\n    X
+          = iris.data\n\n    # Create target vector\n    y = iris.target\n\n    #
+          Split data\n    X_train, X_test, y_train, y_test = model_selection.train_test_split(X,
+          y, test_size=test_samples_fraction, random_state=seed)\n\n    # Model instance\n    model
+          = LogisticRegression()\n\n    # Fit model\n    model.fit(X_train, y_train)\n\n    #
+          Predict \n    y_pred = model.predict(X_test)\n\n    test_prediction_results
+          = pd.DataFrame(data={''y_test'':y_test, ''y_pred'':y_pred}).reset_index(drop=True)\n    test_prediction_results.to_csv(results,
+          index=False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Train'',
+          description=''The function train a model and outputs the predictions.'')\n_parser.add_argument(\"--test-samples-fraction\",
+          dest=\"test_samples_fraction\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--seed\",
+          dest=\"seed\", type=int, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--results\",
+          dest=\"results\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = train(**_parsed_args)\n"], "image": "python:3.8"}}, "inputs": [{"name":
+          "test_samples_fraction", "type": "Float"}, {"name": "seed", "type": "Integer"}],
+          "name": "Train", "outputs": [{"name": "results", "type": "results"}]}',
+        pipelines.kubeflow.org/component_ref: '{}', pipelines.kubeflow.org/arguments.parameters: '{"seed":
+          "7", "test_samples_fraction": "0.3"}'}
+  - name: train-evaluation-pipeline
+    dag:
+      tasks:
+      - name: evaluate
+        template: evaluate
+        dependencies: [train]
+        arguments:
+          artifacts:
+          - {name: train-results, from: '{{tasks.train.outputs.artifacts.train-results}}'}
+      - {name: train, template: train}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner

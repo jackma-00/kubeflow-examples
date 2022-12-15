@@ -1,0 +1,50 @@
+name: Train
+description: The function train a model and outputs the predictions.
+inputs:
+- {name: test_samples_fraction, type: Float}
+- {name: seed, type: Integer}
+outputs:
+- {name: results, type: results}
+implementation:
+  container:
+    image: python:3.8
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' 'scikit-learn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install
+      --quiet --no-warn-script-location 'pandas' 'scikit-learn' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef train(test_samples_fraction,\n          seed,\n          results):\n \
+      \   \"\"\"The function train a model and outputs the predictions.\"\"\"\n\n\
+      \    import pandas as pd\n    from sklearn import model_selection\n    from\
+      \ sklearn.linear_model import LogisticRegression\n    from sklearn import datasets\n\
+      \n    # Load iris dataset\n    iris = datasets.load_iris()\n\n    # Create feature\
+      \ matrix\n    X = iris.data\n\n    # Create target vector\n    y = iris.target\n\
+      \n    # Split data\n    X_train, X_test, y_train, y_test = model_selection.train_test_split(X,\
+      \ y, test_size=test_samples_fraction, random_state=seed)\n\n    # Model instance\n\
+      \    model = LogisticRegression()\n\n    # Fit model\n    model.fit(X_train,\
+      \ y_train)\n\n    # Predict \n    y_pred = model.predict(X_test)\n\n    test_prediction_results\
+      \ = pd.DataFrame(data={'y_test':y_test, 'y_pred':y_pred}).reset_index(drop=True)\n\
+      \    test_prediction_results.to_csv(results, index=False)\n\nimport argparse\n\
+      _parser = argparse.ArgumentParser(prog='Train', description='The function train\
+      \ a model and outputs the predictions.')\n_parser.add_argument(\"--test-samples-fraction\"\
+      , dest=\"test_samples_fraction\", type=float, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--seed\", dest=\"seed\", type=int, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--results\", dest=\"results\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+      \n_outputs = train(**_parsed_args)\n"
+    args:
+    - --test-samples-fraction
+    - {inputValue: test_samples_fraction}
+    - --seed
+    - {inputValue: seed}
+    - --results
+    - {outputPath: results}
