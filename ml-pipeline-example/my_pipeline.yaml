@@ -1,0 +1,423 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: iris-training-pipeline-
+  annotations:
+    pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+    pipelines.kubeflow.org/pipeline_compilation_time: '2022-12-16T15:00:23.399654'
+    pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"name": "standard_scaler",
+      "type": "Boolean"}, {"name": "min_max_scaler", "type": "Boolean"}, {"name":
+      "neighbors", "type": "typing.List[int]"}, {"default": "", "name": "pipeline-root"},
+      {"default": "pipeline/iris-training-pipeline", "name": "pipeline-name"}], "name":
+      "iris-training-pipeline"}'
+    pipelines.kubeflow.org/v2_pipeline: "true"
+  labels:
+    pipelines.kubeflow.org/v2_pipeline: "true"
+    pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+spec:
+  entrypoint: iris-training-pipeline
+  templates:
+  - name: create-dataset
+    container:
+      args:
+      - sh
+      - -c
+      - |2
+
+        if ! [ -x "$(command -v pip)" ]; then
+            python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+        fi
+
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.3.5' 'kfp==1.8.17' && "$0" "$@"
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp -d)
+        printf "%s" "$0" > "$program_path/ephemeral_component.py"
+        python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+      - |2+
+
+        import kfp
+        from kfp.v2 import dsl
+        from kfp.v2.dsl import *
+        from typing import *
+
+        def create_dataset(iris_dataset: Output[Dataset]):
+            import pandas as pd
+
+            csv_url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
+            col_names = [
+                'Sepal_Length', 'Sepal_Width', 'Petal_Length', 'Petal_Width', 'Labels'
+            ]
+            df = pd.read_csv(csv_url, names=col_names)
+
+            with open(iris_dataset.path, 'w') as f:
+                df.to_csv(f)
+
+      - --executor_input
+      - '{{$}}'
+      - --function_to_execute
+      - create_dataset
+      command: [/kfp-launcher/launch, --mlmd_server_address, $(METADATA_GRPC_SERVICE_HOST),
+        --mlmd_server_port, $(METADATA_GRPC_SERVICE_PORT), --runtime_info_json, $(KFP_V2_RUNTIME_INFO),
+        --container_image, $(KFP_V2_IMAGE), --task_name, create-dataset, --pipeline_name,
+        '{{inputs.parameters.pipeline-name}}', --run_id, $(KFP_RUN_ID), --run_resource,
+        workflows.argoproj.io/$(WORKFLOW_ID), --namespace, $(KFP_NAMESPACE), --pod_name,
+        $(KFP_POD_NAME), --pod_uid, $(KFP_POD_UID), --pipeline_root, '{{inputs.parameters.pipeline-root}}',
+        --enable_caching, $(ENABLE_CACHING), --, --]
+      env:
+      - name: KFP_POD_NAME
+        valueFrom:
+          fieldRef: {fieldPath: metadata.name}
+      - name: KFP_POD_UID
+        valueFrom:
+          fieldRef: {fieldPath: metadata.uid}
+      - name: KFP_NAMESPACE
+        valueFrom:
+          fieldRef: {fieldPath: metadata.namespace}
+      - name: WORKFLOW_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''workflows.argoproj.io/workflow'']'}
+      - name: KFP_RUN_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipeline/runid'']'}
+      - name: ENABLE_CACHING
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipelines.kubeflow.org/enable_caching'']'}
+      - {name: KFP_V2_IMAGE, value: 'python:3.7'}
+      - {name: KFP_V2_RUNTIME_INFO, value: '{"inputParameters": {}, "inputArtifacts":
+          {}, "outputParameters": {}, "outputArtifacts": {"iris_dataset": {"schemaTitle":
+          "system.Dataset", "instanceSchema": "", "schemaVersion": "0.0.1", "metadataPath":
+          "/tmp/outputs/iris_dataset/data"}}}'}
+      envFrom:
+      - configMapRef: {name: metadata-grpc-configmap, optional: true}
+      image: python:3.7
+      volumeMounts:
+      - {mountPath: /kfp-launcher, name: kfp-launcher}
+    inputs:
+      parameters:
+      - {name: pipeline-name}
+      - {name: pipeline-root}
+    outputs:
+      artifacts:
+      - {name: create-dataset-iris_dataset, path: /tmp/outputs/iris_dataset/data}
+    metadata:
+      annotations:
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/component_ref: '{}'
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/enable_caching: "true"
+    initContainers:
+    - command: [launcher, --copy, /kfp-launcher/launch]
+      image: gcr.io/ml-pipeline/kfp-launcher:1.8.7
+      name: kfp-launcher
+      mirrorVolumeMounts: true
+    volumes:
+    - {name: kfp-launcher}
+  - name: for-loop-1
+    parallelism: 0
+    inputs:
+      parameters:
+      - {name: neighbors-loop-item}
+      - {name: pipeline-name}
+      - {name: pipeline-root}
+      artifacts:
+      - {name: normalize-dataset-normalized_iris_dataset}
+    dag:
+      tasks:
+      - name: train-model
+        template: train-model
+        arguments:
+          parameters:
+          - {name: neighbors-loop-item, value: '{{inputs.parameters.neighbors-loop-item}}'}
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+          artifacts:
+          - {name: normalize-dataset-normalized_iris_dataset, from: '{{inputs.artifacts.normalize-dataset-normalized_iris_dataset}}'}
+  - name: iris-training-pipeline
+    inputs:
+      parameters:
+      - {name: pipeline-name}
+      - {name: pipeline-root}
+    dag:
+      tasks:
+      - name: create-dataset
+        template: create-dataset
+        arguments:
+          parameters:
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+      - name: for-loop-1
+        template: for-loop-1
+        dependencies: [normalize-dataset]
+        arguments:
+          parameters:
+          - {name: neighbors-loop-item, value: '{{item}}'}
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+          artifacts:
+          - {name: normalize-dataset-normalized_iris_dataset, from: '{{tasks.normalize-dataset.outputs.artifacts.normalize-dataset-normalized_iris_dataset}}'}
+        withParam: '{{workflow.parameters.neighbors}}'
+      - name: normalize-dataset
+        template: normalize-dataset
+        dependencies: [create-dataset]
+        arguments:
+          parameters:
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+          artifacts:
+          - {name: create-dataset-iris_dataset, from: '{{tasks.create-dataset.outputs.artifacts.create-dataset-iris_dataset}}'}
+  - name: normalize-dataset
+    container:
+      args:
+      - sh
+      - -c
+      - |2
+
+        if ! [ -x "$(command -v pip)" ]; then
+            python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+        fi
+
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.3.5' 'scikit-learn==1.0.2' 'kfp==1.8.17' && "$0" "$@"
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp -d)
+        printf "%s" "$0" > "$program_path/ephemeral_component.py"
+        python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+      - |2+
+
+        import kfp
+        from kfp.v2 import dsl
+        from kfp.v2.dsl import *
+        from typing import *
+
+        def normalize_dataset(
+            input_iris_dataset: Input[Dataset],
+            normalized_iris_dataset: Output[Dataset],
+            standard_scaler: bool,
+            min_max_scaler: bool,
+        ):
+            if standard_scaler is min_max_scaler:
+                raise ValueError(
+                    'Exactly one of standard_scaler or min_max_scaler must be True.')
+
+            import pandas as pd
+            from sklearn.preprocessing import MinMaxScaler
+            from sklearn.preprocessing import StandardScaler
+
+            with open(input_iris_dataset.path) as f:
+                df = pd.read_csv(f)
+            labels = df.pop('Labels')
+
+            if standard_scaler:
+                scaler = StandardScaler()
+            if min_max_scaler:
+                scaler = MinMaxScaler()
+
+            df = pd.DataFrame(scaler.fit_transform(df))
+            df['Labels'] = labels
+            with open(normalized_iris_dataset.path, 'w') as f:
+                df.to_csv(f)
+
+      - --executor_input
+      - '{{$}}'
+      - --function_to_execute
+      - normalize_dataset
+      command: [/kfp-launcher/launch, --mlmd_server_address, $(METADATA_GRPC_SERVICE_HOST),
+        --mlmd_server_port, $(METADATA_GRPC_SERVICE_PORT), --runtime_info_json, $(KFP_V2_RUNTIME_INFO),
+        --container_image, $(KFP_V2_IMAGE), --task_name, normalize-dataset, --pipeline_name,
+        '{{inputs.parameters.pipeline-name}}', --run_id, $(KFP_RUN_ID), --run_resource,
+        workflows.argoproj.io/$(WORKFLOW_ID), --namespace, $(KFP_NAMESPACE), --pod_name,
+        $(KFP_POD_NAME), --pod_uid, $(KFP_POD_UID), --pipeline_root, '{{inputs.parameters.pipeline-root}}',
+        --enable_caching, $(ENABLE_CACHING), --, min_max_scaler=False, standard_scaler=True,
+        --]
+      env:
+      - name: KFP_POD_NAME
+        valueFrom:
+          fieldRef: {fieldPath: metadata.name}
+      - name: KFP_POD_UID
+        valueFrom:
+          fieldRef: {fieldPath: metadata.uid}
+      - name: KFP_NAMESPACE
+        valueFrom:
+          fieldRef: {fieldPath: metadata.namespace}
+      - name: WORKFLOW_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''workflows.argoproj.io/workflow'']'}
+      - name: KFP_RUN_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipeline/runid'']'}
+      - name: ENABLE_CACHING
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipelines.kubeflow.org/enable_caching'']'}
+      - {name: KFP_V2_IMAGE, value: 'python:3.7'}
+      - {name: KFP_V2_RUNTIME_INFO, value: '{"inputParameters": {"min_max_scaler":
+          {"type": "STRING"}, "standard_scaler": {"type": "STRING"}}, "inputArtifacts":
+          {"input_iris_dataset": {"metadataPath": "/tmp/inputs/input_iris_dataset/data",
+          "schemaTitle": "system.Dataset", "instanceSchema": "", "schemaVersion":
+          "0.0.1"}}, "outputParameters": {}, "outputArtifacts": {"normalized_iris_dataset":
+          {"schemaTitle": "system.Dataset", "instanceSchema": "", "schemaVersion":
+          "0.0.1", "metadataPath": "/tmp/outputs/normalized_iris_dataset/data"}}}'}
+      envFrom:
+      - configMapRef: {name: metadata-grpc-configmap, optional: true}
+      image: python:3.7
+      volumeMounts:
+      - {mountPath: /kfp-launcher, name: kfp-launcher}
+    inputs:
+      parameters:
+      - {name: pipeline-name}
+      - {name: pipeline-root}
+      artifacts:
+      - {name: create-dataset-iris_dataset, path: /tmp/inputs/input_iris_dataset/data}
+    outputs:
+      artifacts:
+      - {name: normalize-dataset-normalized_iris_dataset, path: /tmp/outputs/normalized_iris_dataset/data}
+    metadata:
+      annotations:
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/component_ref: '{}'
+        pipelines.kubeflow.org/arguments.parameters: '{"min_max_scaler": "False",
+          "standard_scaler": "True"}'
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/enable_caching: "true"
+    initContainers:
+    - command: [launcher, --copy, /kfp-launcher/launch]
+      image: gcr.io/ml-pipeline/kfp-launcher:1.8.7
+      name: kfp-launcher
+      mirrorVolumeMounts: true
+    volumes:
+    - {name: kfp-launcher}
+  - name: train-model
+    container:
+      args:
+      - sh
+      - -c
+      - |2
+
+        if ! [ -x "$(command -v pip)" ]; then
+            python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+        fi
+
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.3.5' 'scikit-learn==1.0.2' 'kfp==1.8.17' && "$0" "$@"
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp -d)
+        printf "%s" "$0" > "$program_path/ephemeral_component.py"
+        python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+      - |2+
+
+        import kfp
+        from kfp.v2 import dsl
+        from kfp.v2.dsl import *
+        from typing import *
+
+        def train_model(
+            normalized_iris_dataset: Input[Dataset],
+            model: Output[Model],
+            n_neighbors: int,
+        ):
+            import pickle
+
+            import pandas as pd
+            from sklearn.model_selection import train_test_split
+            from sklearn.neighbors import KNeighborsClassifier
+
+            with open(normalized_iris_dataset.path) as f:
+                df = pd.read_csv(f)
+
+            y = df.pop('Labels')
+            X = df
+
+            X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+
+            clf = KNeighborsClassifier(n_neighbors=n_neighbors)
+            clf.fit(X_train, y_train)
+            with open(model.path, 'wb') as f:
+                pickle.dump(clf, f)
+
+      - --executor_input
+      - '{{$}}'
+      - --function_to_execute
+      - train_model
+      command: [/kfp-launcher/launch, --mlmd_server_address, $(METADATA_GRPC_SERVICE_HOST),
+        --mlmd_server_port, $(METADATA_GRPC_SERVICE_PORT), --runtime_info_json, $(KFP_V2_RUNTIME_INFO),
+        --container_image, $(KFP_V2_IMAGE), --task_name, train-model, --pipeline_name,
+        '{{inputs.parameters.pipeline-name}}', --run_id, $(KFP_RUN_ID), --run_resource,
+        workflows.argoproj.io/$(WORKFLOW_ID), --namespace, $(KFP_NAMESPACE), --pod_name,
+        $(KFP_POD_NAME), --pod_uid, $(KFP_POD_UID), --pipeline_root, '{{inputs.parameters.pipeline-root}}',
+        --enable_caching, $(ENABLE_CACHING), --, 'n_neighbors={{inputs.parameters.neighbors-loop-item}}',
+        --]
+      env:
+      - name: KFP_POD_NAME
+        valueFrom:
+          fieldRef: {fieldPath: metadata.name}
+      - name: KFP_POD_UID
+        valueFrom:
+          fieldRef: {fieldPath: metadata.uid}
+      - name: KFP_NAMESPACE
+        valueFrom:
+          fieldRef: {fieldPath: metadata.namespace}
+      - name: WORKFLOW_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''workflows.argoproj.io/workflow'']'}
+      - name: KFP_RUN_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipeline/runid'']'}
+      - name: ENABLE_CACHING
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipelines.kubeflow.org/enable_caching'']'}
+      - {name: KFP_V2_IMAGE, value: 'python:3.7'}
+      - {name: KFP_V2_RUNTIME_INFO, value: '{"inputParameters": {"n_neighbors": {"type":
+          "INT"}}, "inputArtifacts": {"normalized_iris_dataset": {"metadataPath":
+          "/tmp/inputs/normalized_iris_dataset/data", "schemaTitle": "system.Dataset",
+          "instanceSchema": "", "schemaVersion": "0.0.1"}}, "outputParameters": {},
+          "outputArtifacts": {"model": {"schemaTitle": "system.Model", "instanceSchema":
+          "", "schemaVersion": "0.0.1", "metadataPath": "/tmp/outputs/model/data"}}}'}
+      envFrom:
+      - configMapRef: {name: metadata-grpc-configmap, optional: true}
+      image: python:3.7
+      volumeMounts:
+      - {mountPath: /kfp-launcher, name: kfp-launcher}
+    inputs:
+      parameters:
+      - {name: neighbors-loop-item}
+      - {name: pipeline-name}
+      - {name: pipeline-root}
+      artifacts:
+      - {name: normalize-dataset-normalized_iris_dataset, path: /tmp/inputs/normalized_iris_dataset/data}
+    outputs:
+      artifacts:
+      - {name: train-model-model, path: /tmp/outputs/model/data}
+    metadata:
+      annotations:
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/component_ref: '{}'
+        pipelines.kubeflow.org/arguments.parameters: '{"n_neighbors": "{{inputs.parameters.neighbors-loop-item}}"}'
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.17
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/enable_caching: "true"
+    initContainers:
+    - command: [launcher, --copy, /kfp-launcher/launch]
+      image: gcr.io/ml-pipeline/kfp-launcher:1.8.7
+      name: kfp-launcher
+      mirrorVolumeMounts: true
+    volumes:
+    - {name: kfp-launcher}
+  arguments:
+    parameters:
+    - {name: standard_scaler}
+    - {name: min_max_scaler}
+    - {name: neighbors}
+    - {name: pipeline-root, value: ''}
+    - {name: pipeline-name, value: pipeline/iris-training-pipeline}
+  serviceAccountName: pipeline-runner

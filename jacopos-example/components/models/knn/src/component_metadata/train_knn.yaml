@@ -1,0 +1,28 @@
+name: Train knn
+description: The function trains and serializes a knn model.
+inputs:
+- {name: normalized_dataset, type: Dataset}
+- {name: n_neighbors, type: Integer}
+outputs:
+- {name: model, type: Model}
+implementation:
+  container:
+    image: jackma00/train-knn:latest
+    command:
+    - sh
+    - -c
+    - |2
+
+      if ! [ -x "$(command -v pip)" ]; then
+          python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+      fi
+
+      PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pandas' 'scikit-learn' && "$0" "$@"
+    - python3
+    - -m
+    - kfp.v2.components.executor_main
+    args:
+    - --executor_input
+    - {executorInput: null}
+    - --function_to_execute
+    - train_knn
