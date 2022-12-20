@@ -1,0 +1,56 @@
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMvakNDQWVhZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeU1USXhNakUyTURJeU9Gb1hEVE15TVRJd09URTJNREl5T0Zvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBT0VWCjRzTUcxaU9QMHRINXNwWkNkSjJsYkpYQW9iTmFZdExjRkFmcFZnaWFBMk1RaTQrSEM1S3dYYXQrems5cFFicHUKbWtzbGt0NEtqSmZlNkRXUlQ4eEw4WW1hKzZ6NjFGQTdxRTJkTHBiM3FrVzBvcVJMOWRLNVd6Q0QvNCtBOW5rYwpERGZtb0t4aUs0M0V0czN1OGloTmZ4OG1GRU1tMlJERXZWd0pETnA2d3g3U3ZScWhyellvb0o4L3Jlc1dnTGtTCktMNkdGcGY3TllFd1BEL2R2VExscDloZ1BqMnQ2Z3JHZE9rMjNPQzlpUFBTbE9HUnQxWFZhalBqak9pRXc3ZVIKWWtXZkcvZEd5UUE4UllaaUxuYjdNUzdsV3Z3Z0RVZlR2d2owZ2FnRFA4SXo4clF3M3RVYk1PYTVGVzh4VkRGZQpObFoxRnpYSDQ5S3dPZFpKWStFQ0F3RUFBYU5aTUZjd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZBRDBBSm91VEJxcVM4OWlKV1p1OHVuNFpNcnpNQlVHQTFVZEVRUU8KTUF5Q0NtdDFZbVZ5Ym1WMFpYTXdEUVlKS29aSWh2Y05BUUVMQlFBRGdnRUJBSjFMa0ZXcHRkQkkzdUsyZVU4dQpWUnJwZzhuNXhwWGZGL0Y2ZDNVK3hNclAzTnFrUnN3Nkk1ajd6SW93OTNBQ0thWm16VitYejRKQ3g4SzBPVVdvCjdsQ0VNQzYzVzExcWx5NDdNYkpRRHhXbzFOSUlzZ0RhOHNreHBQRlU3UW13ZlNZdTNPWFhVU2dLcFF5aDR4dm0KZ2VvY2ZVRTRNKzgyMXpzRWozU2p0U1BNajJhMFBIcndIWVg0MlVSUFczSzJReFJsUE1RdWpTMjRnbGlWYWYyRQpqWThUT2NsNU5SRTIwYXVSZjUzNWQ0Wjd1RDhjVktnakltWVZTT29yNkZ1R05HT3JQTkw2Q1VOSWdvMElTb0l0CkNjTGV2OXNrWnkxZmVOUjUyRXdySU5TMzBGcnpzdlVnbUw0S25zNUpjRFVBZGtGZGZ3SFMvUEtsdXk5eEYzMVYKR0hjPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    server: https://261C36CB6B78E7126C252A324801EDB4.sk1.eu-west-1.eks.amazonaws.com
+  name: kubeflow-cluster.eu-west-1.eksctl.io
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMvakNDQWVhZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeU1USXhNakUyTURJeU9Gb1hEVE15TVRJd09URTJNREl5T0Zvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBT0VWCjRzTUcxaU9QMHRINXNwWkNkSjJsYkpYQW9iTmFZdExjRkFmcFZnaWFBMk1RaTQrSEM1S3dYYXQrems5cFFicHUKbWtzbGt0NEtqSmZlNkRXUlQ4eEw4WW1hKzZ6NjFGQTdxRTJkTHBiM3FrVzBvcVJMOWRLNVd6Q0QvNCtBOW5rYwpERGZtb0t4aUs0M0V0czN1OGloTmZ4OG1GRU1tMlJERXZWd0pETnA2d3g3U3ZScWhyellvb0o4L3Jlc1dnTGtTCktMNkdGcGY3TllFd1BEL2R2VExscDloZ1BqMnQ2Z3JHZE9rMjNPQzlpUFBTbE9HUnQxWFZhalBqak9pRXc3ZVIKWWtXZkcvZEd5UUE4UllaaUxuYjdNUzdsV3Z3Z0RVZlR2d2owZ2FnRFA4SXo4clF3M3RVYk1PYTVGVzh4VkRGZQpObFoxRnpYSDQ5S3dPZFpKWStFQ0F3RUFBYU5aTUZjd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZBRDBBSm91VEJxcVM4OWlKV1p1OHVuNFpNcnpNQlVHQTFVZEVRUU8KTUF5Q0NtdDFZbVZ5Ym1WMFpYTXdEUVlKS29aSWh2Y05BUUVMQlFBRGdnRUJBSjFMa0ZXcHRkQkkzdUsyZVU4dQpWUnJwZzhuNXhwWGZGL0Y2ZDNVK3hNclAzTnFrUnN3Nkk1ajd6SW93OTNBQ0thWm16VitYejRKQ3g4SzBPVVdvCjdsQ0VNQzYzVzExcWx5NDdNYkpRRHhXbzFOSUlzZ0RhOHNreHBQRlU3UW13ZlNZdTNPWFhVU2dLcFF5aDR4dm0KZ2VvY2ZVRTRNKzgyMXpzRWozU2p0U1BNajJhMFBIcndIWVg0MlVSUFczSzJReFJsUE1RdWpTMjRnbGlWYWYyRQpqWThUT2NsNU5SRTIwYXVSZjUzNWQ0Wjd1RDhjVktnakltWVZTT29yNkZ1R05HT3JQTkw2Q1VOSWdvMElTb0l0CkNjTGV2OXNrWnkxZmVOUjUyRXdySU5TMzBGcnpzdlVnbUw0S25zNUpjRFVBZGtGZGZ3SFMvUEtsdXk5eEYzMVYKR0hjPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    server: https://261C36CB6B78E7126C252A324801EDB4.sk1.eu-west-1.eks.amazonaws.com
+  name: arn:aws:eks:eu-west-1:892964947378:cluster/kubeflow-cluster
+contexts:
+- context:
+    cluster: kubeflow-cluster.eu-west-1.eksctl.io
+    user: jacopomaragna@kubeflow-cluster.eu-west-1.eksctl.io
+  name: jacopomaragna@kubeflow-cluster.eu-west-1.eksctl.io
+- context:
+    cluster: arn:aws:eks:eu-west-1:892964947378:cluster/kubeflow-cluster
+    user: arn:aws:eks:eu-west-1:892964947378:cluster/kubeflow-cluster
+  name: arn:aws:eks:eu-west-1:892964947378:cluster/kubeflow-cluster
+current-context: arn:aws:eks:eu-west-1:892964947378:cluster/kubeflow-cluster
+kind: Config
+preferences: {}
+users:
+- name: jacopomaragna@kubeflow-cluster.eu-west-1.eksctl.io
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args:
+      - eks
+      - get-token
+      - --cluster-name
+      - kubeflow-cluster
+      - --region
+      - eu-west-1
+      command: aws
+      env:
+      - name: AWS_STS_REGIONAL_ENDPOINTS
+        value: regional
+      - name: AWS_PROFILE
+        value: kubeflow
+      provideClusterInfo: false
+- name: arn:aws:eks:eu-west-1:892964947378:cluster/kubeflow-cluster
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args:
+      - --region
+      - eu-west-1
+      - eks
+      - get-token
+      - --cluster-name
+      - kubeflow-cluster
+      command: aws
+      env:
+      - name: AWS_PROFILE
+        value: kubeflow
